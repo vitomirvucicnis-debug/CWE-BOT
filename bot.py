@@ -9,6 +9,7 @@ DB=sqlite3.connect(os.getenv("DATA_DIR",".")+"/cwe.sqlite3")
 DB.execute("CREATE TABLE IF NOT EXISTS users (guild INTEGER,user INTEGER,coins INTEGER DEFAULT 0,xp INTEGER DEFAULT 0,last_daily INTEGER DEFAULT 0,PRIMARY KEY(guild,user))")
 DB.execute("CREATE TABLE IF NOT EXISTS setup (guild INTEGER PRIMARY KEY,welcome INTEGER,levelup INTEGER,tickets INTEGER)")
 DB.execute("CREATE TABLE IF NOT EXISTS member_roles (guild INTEGER PRIMARY KEY, role INTEGER NOT NULL, verify_channel INTEGER)")
+DB.execute("CREATE TABLE IF NOT EXISTS channel_locks (guild INTEGER, channel INTEGER, role INTEGER, prior TEXT, PRIMARY KEY(guild,channel,role))")
 DB.commit()
 intents=discord.Intents.default()
 intents.message_content=False
@@ -93,17 +94,49 @@ async def leaderboard(ctx):
 async def currency(i:discord.Interaction):
  await i.response.send_message("🪙 **Cwe Coins**: ?Cwe coins, ?Cwe daily, ?Cwe slot, ?Cwe leaderboard")
 
-@bot.tree.command(name="lock",description="Lock a channel")
+@bot.tree.command(name="lock",description="Lock a text channel for regular members")
 @app_commands.checks.has_permissions(manage_channels=True)
 async def lock(i:discord.Interaction,channel:discord.TextChannel|None=None):
- ch=channel or i.channel; await ch.set_permissions(i.guild.default_role,send_messages=False)
- await i.response.send_message(f"🔒 {ch.mention} locked.")
+ ch=channel or i.channel
+ await i.response.defer(ephemeral=True)
+ if not ch.permissions_for(i.guild.me).manage_roles:
+  return await i.followup.send("❌ CWE BOT needs Manage Roles permission to edit channel permissions.",ephemeral=True)
+ roles=[i.guild.default_role]+[r for r in i.guild.roles if r!=i.guild.default_role and not r.permissions.administrator and not r.permissions.manage_channels and not r.permissions.manage_messages]
+ changed=0
+ for role in roles:
+  overwrite=ch.overwrites_for(role)
+  if overwrite.send_messages is False:continue
+  prior="none" if overwrite.send_messages is None else "true"
+  try:
+   overwrite.send_messages=False
+   await ch.set_permissions(role,overwrite=overwrite,reason="CWE channel lock")
+   DB.execute("INSERT OR IGNORE INTO channel_locks(guild,channel,role,prior) VALUES (?,?,?,?)",(i.guild.id,ch.id,role.id,prior))
+   changed+=1
+  except discord.Forbidden:
+   DB.commit();return await i.followup.send(f"❌ Missing permission to lock {ch.mention}. Check CWE BOT's Manage Roles and channel permission overrides.",ephemeral=True)
+  except discord.HTTPException as e: print("Lock role error",role.id,repr(e),flush=True)
+ DB.commit()
+ await i.followup.send(f"🔒 Locked {ch.mention} for regular members ({changed} permission changes).",ephemeral=True)
 
-@bot.tree.command(name="unlock",description="Unlock a channel")
+@bot.tree.command(name="unlock",description="Restore channel permissions saved by /lock")
 @app_commands.checks.has_permissions(manage_channels=True)
 async def unlock(i:discord.Interaction,channel:discord.TextChannel|None=None):
- ch=channel or i.channel;await ch.set_permissions(i.guild.default_role,send_messages=None)
- await i.response.send_message(f"🔓 {ch.mention} unlocked.")
+ ch=channel or i.channel
+ await i.response.defer(ephemeral=True)
+ rows=DB.execute("SELECT role,prior FROM channel_locks WHERE guild=? AND channel=?",(i.guild.id,ch.id)).fetchall()
+ if not rows:return await i.followup.send("ℹ️ No saved lock settings for this channel.",ephemeral=True)
+ restored=0
+ for roleid,prior in rows:
+  role=i.guild.get_role(roleid)
+  if role is None:continue
+  overwrite=ch.overwrites_for(role)
+  overwrite.send_messages=None if prior=="none" else True
+  try:
+   await ch.set_permissions(role,overwrite=overwrite,reason="CWE channel unlock")
+   DB.execute("DELETE FROM channel_locks WHERE guild=? AND channel=? AND role=?",(i.guild.id,ch.id,roleid));restored+=1
+  except discord.HTTPException as e:print("Unlock role error",roleid,repr(e),flush=True)
+ DB.commit()
+ await i.followup.send(f"🔓 Restored {restored} channel permissions in {ch.mention}.",ephemeral=True)
 
 @bot.tree.command(name="welcome",description="Set welcome channel")
 @app_commands.checks.has_permissions(manage_guild=True)
