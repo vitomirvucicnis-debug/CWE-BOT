@@ -30,6 +30,21 @@ def add(g,u,key,n):
 
 @bot.event
 async def on_ready():
+ # Rename the Discord bot account, then apply the same server nickname.
+ if bot.user.name != "DRILL LIFE BOT":
+  try:
+   await bot.user.edit(username="DRILL LIFE BOT")
+   print("BOT USERNAME UPDATED",bot.user.name,flush=True)
+  except discord.HTTPException as e:
+   print("BOT USERNAME UPDATE REJECTED",repr(e),flush=True)
+ for guild in bot.guilds:
+  try:
+   member=guild.me
+   if member and member.nick != "DRILL LIFE BOT":
+    await member.edit(nick="DRILL LIFE BOT",reason="Requested bot rebrand")
+    print("BOT NICKNAME UPDATED",guild.id,flush=True)
+  except discord.HTTPException as e:
+   print("BOT NICKNAME UPDATE REJECTED",guild.id,repr(e),flush=True)
  try:
   synced=await bot.tree.sync()
   print("READY",bot.user,"global commands",len(synced),flush=True)
