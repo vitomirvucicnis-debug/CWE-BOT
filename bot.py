@@ -43,17 +43,24 @@ async def on_ready():
  except Exception as e: print("Sync error",repr(e),flush=True)
 
 @bot.event
+def make_welcome_embed(member):
+ guild=member.guild
+ count=guild.member_count
+ joined=discord.utils.format_dt(member.joined_at or discord.utils.utcnow(),style="f")
+ created=discord.utils.format_dt(member.created_at,style="R")
+ embed=discord.Embed(title="🛡️ Welcome!",description=f"Welcome {member.mention} to **CWE clan**! You are member **#{count or '?'}**.\n\nPlease complete verification to unlock the community.",color=discord.Color.from_rgb(47,116,220))
+ embed.add_field(name="Account created",value=created,inline=True)
+ embed.add_field(name="Members",value=str(count or "?"),inline=True)
+ embed.set_thumbnail(url=member.display_avatar.url)
+ embed.set_footer(text=f"Member #{count or '?'} • {joined}")
+ return embed
+
+@bot.event
 async def on_member_join(member):
- row=DB.execute("SELECT role FROM member_roles WHERE guild=?",(member.guild.id,)).fetchone()
- if row and intents.members:
-  role=member.guild.get_role(row[0])
-  if role:
-   try: await member.add_roles(role,reason="CWE automatic member role")
-   except discord.HTTPException as e:print("Autorole failed",repr(e),flush=True)
  ch=member.guild.get_channel(setting(member.guild.id,"welcome") or 0)
  if ch:
-  try: await ch.send(f"🎉 Welcome {member.mention} to **{member.guild.name}**!")
-  except discord.HTTPException: pass
+  try: await ch.send(embed=make_welcome_embed(member))
+  except discord.HTTPException as e:print("Welcome failed",repr(e),flush=True)
 
 @bot.event
 async def on_message(m):
@@ -143,6 +150,16 @@ async def unlock(i:discord.Interaction,channel:discord.TextChannel|None=None):
 async def welcome(i:discord.Interaction,channel:discord.TextChannel):
  set_setting(i.guild.id,"welcome",channel.id)
  await i.response.send_message(f"✅ Welcome messages set to {channel.mention}",ephemeral=True)
+
+@bot.tree.command(name="welcometest",description="Preview the CWE clan welcome card")
+@app_commands.checks.has_permissions(manage_guild=True)
+async def welcometest(i:discord.Interaction,channel:discord.TextChannel|None=None):
+ ch=channel or i.guild.get_channel(setting(i.guild.id,"welcome") or 0) or i.channel
+ try:
+  await ch.send(embed=make_welcome_embed(i.user))
+ except discord.Forbidden:
+  return await i.response.send_message("❌ CWE BOT needs Send Messages and Embed Links in that channel.",ephemeral=True)
+ await i.response.send_message(f"✅ Welcome test posted in {ch.mention}.",ephemeral=True)
 
 @bot.tree.command(name="levelupsetup",description="Set level-up channel")
 @app_commands.checks.has_permissions(manage_guild=True)
