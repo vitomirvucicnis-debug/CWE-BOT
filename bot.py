@@ -164,7 +164,7 @@ async def slash_leaderboard(i:discord.Interaction):
  await i.response.send_message("🏆 **Cwe Coins leaderboard**\\n"+("\\n".join(f"{n+1}. <@{u}> — {coins}" for n,(u,coins) in enumerate(rows)) or "No balances yet."))
 
 
-RULES_TEXT = """📜 **CWE SERVER RULES** 💙
+RULES_TEXT = """<:static:1561281643443134564> **CWE SERVER RULES** 💙
 
 **1. 🤝 Respect Everyone** — No bullying, harassment, discrimination or hate speech.
 **2. 🚫 No Spamming** — Avoid spam, mass mentions or command flooding.
@@ -184,7 +184,9 @@ RULES_TEXT = """📜 **CWE SERVER RULES** 💙
 @app_commands.checks.has_permissions(manage_guild=True)
 async def rules(i:discord.Interaction,channel:discord.TextChannel|None=None):
  ch=channel or i.channel
- await ch.send(RULES_TEXT,allowed_mentions=discord.AllowedMentions.none())
+ embed=discord.Embed(description=RULES_TEXT,color=discord.Color.blurple())
+ embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1561281643443134564.webp?size=80")
+ await ch.send(embed=embed,allowed_mentions=discord.AllowedMentions.none())
  await i.response.send_message(f"✅ Rules posted in {ch.mention}",ephemeral=True)
 
 @bot.tree.error
