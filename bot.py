@@ -10,8 +10,8 @@ DB.execute("CREATE TABLE IF NOT EXISTS users (guild INTEGER,user INTEGER,coins I
 DB.execute("CREATE TABLE IF NOT EXISTS setup (guild INTEGER PRIMARY KEY,welcome INTEGER,levelup INTEGER,tickets INTEGER)")
 DB.commit()
 intents=discord.Intents.default()
-intents.message_content=True
-intents.members=True
+intents.message_content=False
+intents.members=False
 bot=commands.Bot(command_prefix=commands.when_mentioned_or("?Cwe ","?cwe "),intents=intents,application_id=1561270741335285780)
 
 def account(g,u):
@@ -138,6 +138,30 @@ async def ticketsetup(i:discord.Interaction,channel:discord.TextChannel):
  set_setting(i.guild.id,"tickets",cat.id)
  await channel.send("🎫 **Cwe Support** — Press the button to open a ticket.",view=OpenView())
  await i.response.send_message(f"✅ Ticket panel posted in {channel.mention}",ephemeral=True)
+
+
+@bot.tree.command(name="coins",description="Check your Cwe Coins balance")
+async def slash_coins(i:discord.Interaction):
+ await i.response.send_message(f"🪙 {i.user.mention}, you have **{account(i.guild.id,i.user.id)[0]} Cwe Coins**!")
+
+@bot.tree.command(name="daily",description="Claim your daily Cwe Coins")
+async def slash_daily(i:discord.Interaction):
+ g,u=i.guild.id,i.user.id;last=account(g,u)[2];now=int(time.time())
+ if now-last<86400:return await i.response.send_message("⏰ You already claimed today's Cwe Coins.",ephemeral=True)
+ DB.execute("UPDATE users SET coins=coins+100,last_daily=? WHERE guild=? AND user=?",(now,g,u));DB.commit()
+ await i.response.send_message(f"🎁 {i.user.mention} claimed **100 Cwe Coins**!")
+
+@bot.tree.command(name="slot",description="Free Cwe Coins emoji slots")
+async def slash_slot(i:discord.Interaction):
+ items=["🍒","🍋","⭐","🍀","💎"];r=[random.choice(items) for _ in range(3)]
+ win=25 if len(set(r))==1 else 0
+ if win:add(i.guild.id,i.user.id,"coins",win)
+ await i.response.send_message(" | ".join(r)+(" — 🎉 +25 Cwe Coins!" if win else " — Try again! (No cost)"))
+
+@bot.tree.command(name="leaderboard",description="View the Cwe Coins leaderboard")
+async def slash_leaderboard(i:discord.Interaction):
+ rows=DB.execute("SELECT user,coins FROM users WHERE guild=? ORDER BY coins DESC LIMIT 10",(i.guild.id,)).fetchall()
+ await i.response.send_message("🏆 **Cwe Coins leaderboard**\\n"+("\\n".join(f"{n+1}. <@{u}> — {coins}" for n,(u,coins) in enumerate(rows)) or "No balances yet."))
 
 @bot.tree.error
 async def errors(i:discord.Interaction,error):
