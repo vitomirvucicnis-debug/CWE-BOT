@@ -163,6 +163,30 @@ async def slash_leaderboard(i:discord.Interaction):
  rows=DB.execute("SELECT user,coins FROM users WHERE guild=? ORDER BY coins DESC LIMIT 10",(i.guild.id,)).fetchall()
  await i.response.send_message("🏆 **Cwe Coins leaderboard**\\n"+("\\n".join(f"{n+1}. <@{u}> — {coins}" for n,(u,coins) in enumerate(rows)) or "No balances yet."))
 
+
+RULES_TEXT = """📜 **CWE SERVER RULES** 💙
+
+**1. 🤝 Respect Everyone** — No bullying, harassment, discrimination or hate speech.
+**2. 🚫 No Spamming** — Avoid spam, mass mentions or command flooding.
+**3. 🔞 Keep It Family-Friendly** — No NSFW or disturbing content.
+**4. 📢 No Advertising** — Get staff permission before advertising.
+**5. 🎮 Fair Play** — No cheating, exploits or scams.
+**6. 💬 Use Correct Channels** — Keep posts and bot commands in the right places.
+**7. 🪙 CWE Coins** — Don't abuse or exploit the coin system.
+**8. 🔒 Protect Privacy** — Never share private information, passwords or tokens.
+**9. 👑 Respect Staff** — Follow reasonable moderator instructions; open a ticket for help.
+**10. 💙 Have Fun!** — Be welcoming and enjoy the community.
+
+⚠️ Rule violations may lead to warnings, timeouts, kicks or bans.
+**💙 CWE COMMUNITY | Powered by CWE BOT 🤖**"""
+
+@bot.tree.command(name="rules",description="Post the CWE Community server rules")
+@app_commands.checks.has_permissions(manage_guild=True)
+async def rules(i:discord.Interaction,channel:discord.TextChannel|None=None):
+ ch=channel or i.channel
+ await ch.send(RULES_TEXT,allowed_mentions=discord.AllowedMentions.none())
+ await i.response.send_message(f"✅ Rules posted in {ch.mention}",ephemeral=True)
+
 @bot.tree.error
 async def errors(i:discord.Interaction,error):
  msg="❌ Missing permissions or an error occurred. Check the bot's channel permissions."
