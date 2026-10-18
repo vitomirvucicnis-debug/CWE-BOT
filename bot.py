@@ -42,7 +42,6 @@ async def on_ready():
     print("Guild sync failed",guild.id,repr(e),flush=True)
  except Exception as e: print("Sync error",repr(e),flush=True)
 
-@bot.event
 def make_welcome_embed(member):
  guild=member.guild
  count=guild.member_count
