@@ -30,7 +30,14 @@ def add(g,u,key,n):
 async def on_ready():
  try:
   synced=await bot.tree.sync()
-  print("READY",bot.user,"commands",len(synced),flush=True)
+  print("READY",bot.user,"global commands",len(synced),flush=True)
+  for guild in bot.guilds:
+   try:
+    bot.tree.copy_global_to(guild=guild)
+    registered=await bot.tree.sync(guild=guild)
+    print("GUILD SYNC",guild.id,len(registered),flush=True)
+   except Exception as e:
+    print("Guild sync failed",guild.id,repr(e),flush=True)
  except Exception as e: print("Sync error",repr(e),flush=True)
 
 @bot.event
