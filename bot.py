@@ -268,46 +268,61 @@ async def rules(i:discord.Interaction,channel:discord.TextChannel|None=None):
  await i.response.send_message(f"✅ Rules posted in {ch.mention}",ephemeral=True)
 
 
+def verification_role(guild,channel):
+ row=DB.execute("SELECT role FROM member_roles WHERE guild=?",(guild.id,)).fetchone()
+ role=guild.get_role(row[0]) if row else None
+ if role is None and isinstance(channel,discord.TextChannel):
+  import re
+  m=re.search(r"DRILL_VERIFY_ROLE:(\\d+)",channel.topic or "")
+  if m:role=guild.get_role(int(m.group(1)))
+ if role is None:
+  role=discord.utils.get(guild.roles,name="Verified") or discord.utils.get(guild.roles,name="✅ Verified")
+ return role
+
 class VerifyButton(discord.ui.Button):
  def __init__(self):super().__init__(label="Verify",style=discord.ButtonStyle.success,emoji="✅",custom_id="cwe:verify")
  async def callback(self,i:discord.Interaction):
-  row=DB.execute("SELECT role FROM member_roles WHERE guild=?",(i.guild.id,)).fetchone()
-  role=i.guild.get_role(row[0]) if row else None
-  if not role:return await i.response.send_message("Verification hasn't been configured.",ephemeral=True)
+  role=verification_role(i.guild,i.channel)
+  if role is None:return await i.response.send_message("❌ Ask an admin to run /verifysetup and choose the Verified role.",ephemeral=True)
   if role in i.user.roles:return await i.response.send_message("✅ You're already verified.",ephemeral=True)
-  try:await i.user.add_roles(role,reason="CWE verification")
-  except discord.Forbidden:return await i.response.send_message("❌ Bot needs Manage Roles and its highest role must be above the verified role.",ephemeral=True)
-  await i.response.send_message("✅ Verified! Your member channels are now unlocked.",ephemeral=True)
+  try:await i.user.add_roles(role,reason="DRILL LIFE verification")
+  except discord.Forbidden:return await i.response.send_message("❌ Give DRILL LIFE BOT Manage Roles and place its role above Verified.",ephemeral=True)
+  except discord.HTTPException:return await i.response.send_message("❌ Could not assign role. Please try again.",ephemeral=True)
+  await i.response.send_message("✅ Verified! Community channels are now unlocked.",ephemeral=True)
 
 class VerifyView(discord.ui.View):
  def __init__(self):super().__init__(timeout=None);self.add_item(VerifyButton())
 
-@bot.tree.command(name="verifysetup",description="Create a verification panel and lock public channels until verified")
+@bot.tree.command(name="verifysetup",description="Set DRILL LIFE verification role and panel")
 @app_commands.checks.has_permissions(administrator=True)
 async def verifysetup(i:discord.Interaction,role:discord.Role,channel:discord.TextChannel):
  await i.response.defer(ephemeral=True)
  if role.is_default() or role.managed or role>=i.guild.me.top_role:
-  return await i.followup.send("❌ Choose a normal role below the bot's highest role.",ephemeral=True)
- if not i.guild.me.guild_permissions.manage_channels or not i.guild.me.guild_permissions.manage_roles:
-  return await i.followup.send("❌ Bot needs Manage Channels and Manage Roles permissions.",ephemeral=True)
+  return await i.followup.send("❌ Choose a role below the bot's highest role.",ephemeral=True)
+ if not i.guild.me.guild_permissions.manage_roles or not i.guild.me.guild_permissions.manage_channels:
+  return await i.followup.send("❌ Bot needs Manage Roles and Manage Channels.",ephemeral=True)
+ import re
+ old_topic=re.sub(r"\\s*\\|?\\s*DRILL_VERIFY_ROLE:\\d+","",channel.topic or "").strip()
+ topic=(old_topic+" | " if old_topic else "")+f"DRILL_VERIFY_ROLE:{role.id}"
+ if len(topic)>1024:return await i.followup.send("❌ Verification channel topic is too long.",ephemeral=True)
+ try:await channel.edit(topic=topic,reason="Save DRILL verification role across deployments")
+ except discord.HTTPException:return await i.followup.send("❌ Could not save verification configuration in the channel topic.",ephemeral=True)
  DB.execute("INSERT OR REPLACE INTO member_roles(guild,role,verify_channel) VALUES (?,?,?)",(i.guild.id,role.id,channel.id));DB.commit()
- # Only hide channels previously public to @everyone; never unlock existing private/staff-only channels.
  changed=0
  for ch in i.guild.channels:
   if ch.id==channel.id or isinstance(ch,discord.CategoryChannel):continue
   everyone=ch.overwrites_for(i.guild.default_role)
   if everyone.view_channel is False:continue
   try:
-   await ch.set_permissions(i.guild.default_role,view_channel=False,reason="CWE verification gate")
-   await ch.set_permissions(role,view_channel=True,reason="CWE verified role access")
+   await ch.set_permissions(i.guild.default_role,view_channel=False,reason="DRILL verification gate")
+   await ch.set_permissions(role,view_channel=True,reason="DRILL verified member access")
    changed+=1
-  except discord.HTTPException as e:print("Verify gate channel failure",ch.id,repr(e),flush=True)
- # Keep verification channel readable by unverified users.
- await channel.set_permissions(i.guild.default_role,view_channel=True,send_messages=False,reason="CWE verification panel")
- embed=discord.Embed(title="CWE VERIFICATION",description="💙 Click **Verify** to unlock the community channels.",color=discord.Color.blurple())
- embed.set_thumbnail(url="https://cdn.discordapp.com/emojis/1561281643443134564.webp?size=80")
+  except discord.HTTPException as e:print("Gate failure",ch.id,repr(e),flush=True)
+ await channel.set_permissions(i.guild.default_role,view_channel=True,send_messages=False,reason="DRILL verify panel")
+ embed=discord.Embed(title="DRILL VERIFICATION",description="💙 Click **Verify** to unlock the community channels.",color=discord.Color.blurple())
+ embed.set_thumbnail(url=bot.user.display_avatar.url)
  await channel.send(embed=embed,view=VerifyView())
- await i.followup.send(f"✅ Verification panel posted in {channel.mention}; gated {changed} previously public channels. Staff-only channels were not changed. Newly created channels need appropriate permissions too.",ephemeral=True)
+ await i.followup.send(f"✅ DRILL verification posted in {channel.mention}. Config saved in the channel topic. Gated {changed} channels.",ephemeral=True)
 
 @bot.tree.command(name="autorole",description="Set the verified member role and post a claim button")
 @app_commands.checks.has_permissions(manage_guild=True)
