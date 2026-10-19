@@ -319,7 +319,7 @@ async def autorole(i:discord.Interaction,role:discord.Role,channel:discord.TextC
  await i.response.send_message("✅ Role button set. Automatic assignment at join requires Server Members Intent.",ephemeral=True)
 
 
-HOOD_CHANNELS = [["📌・INFORMATION",["📜・rules","✅・verify","📢・announcements","👋・welcome","🎭・roles","📊・server-status"],[]],["💬・COMMUNITY",["💬・general","📸・clips-and-media","😂・memes","🤖・bot-commands","🎉・giveaways","💡・suggestions"],[]],["🎮・HOOD GAME",["🎯・hood-chat","🔫・pvp-clips","🏆・leaderboard","⚔️・crew-recruitment","📅・events","🆕・game-updates","🐛・bug-reports","💭・game-ideas"],[]],["🔊・VOICE CHANNELS",[],["🔊・General VC","🎮・Hood VC 1","🎮・Hood VC 2","⚔️・PvP VC","🎵・Music VC","😴・AFK"]],["🎫・SUPPORT",["🎟️・create-ticket","🚨・report-player","❓・help"],[]],["👑・STAFF ONLY",["👑・staff-chat","🛡️・mod-logs","📋・staff-announcements"],["🔊・Staff VC"]]]
+HOOD_CHANNELS = [["📌・INFORMATION",["📜・rules","✅・verify","📢・announcements"],[]],["💬・COMMUNITY",["💬・general","📸・clips","🤖・bot-commands"],[]],["🎮・HOOD GAME",["🎯・hood-chat","🔫・pvp-clips","🆕・game-updates"],["🎮・Hood VC"]],["🎫・SUPPORT",["🎟️・create-ticket"],[]],["👑・STAFF ONLY",["👑・staff-chat"],[]]]
 
 @bot.tree.command(name="setupchannels",description="Create DRILL LIFE Hood Game channel categories")
 @app_commands.checks.has_permissions(administrator=True)
