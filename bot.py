@@ -361,6 +361,16 @@ async def setupchannels(i:discord.Interaction):
     errors.append(name);print("Channel create failed",repr(e),flush=True)
  await i.followup.send(f"✅ Created **{len(made)}** categories/channels. Already existed: **{existing}**. Errors: **{len(errors)}**. Staff channels are private from @everyone. For verified-only access, run /verifysetup with your Verified role and #verify channel. Newly created channels aren't automatically connected to /welcome or /ticketsetup.",ephemeral=True)
 
+
+@bot.tree.command(name="previewcleanup",description="Show old channels that are outside the new Hood Game layout")
+@app_commands.checks.has_permissions(administrator=True)
+async def previewcleanup(i:discord.Interaction):
+ expected={name for category,texts,voices in HOOD_CHANNELS for name in [category,*texts,*voices]}
+ old=[ch for ch in i.guild.channels if ch.name not in expected]
+ summary="\\n".join(f"• {ch.name} ({ch.id})" for ch in old[:30])
+ if len(old)>30:summary+=f"\\n...and {len(old)-30} more"
+ await i.response.send_message(f"🔎 **Old channels/categories:** {len(old)}\\n{summary or 'None'}\\n\\nNothing was deleted.",ephemeral=True)
+
 @bot.tree.error
 async def errors(i:discord.Interaction,error):
  msg="❌ Missing permissions or an error occurred. Check the bot's channel permissions."
