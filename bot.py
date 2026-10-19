@@ -318,6 +318,49 @@ async def autorole(i:discord.Interaction,role:discord.Role,channel:discord.TextC
  await channel.send(f"💙 Click below to get {role.mention}.",view=VerifyView())
  await i.response.send_message("✅ Role button set. Automatic assignment at join requires Server Members Intent.",ephemeral=True)
 
+
+HOOD_CHANNELS = [["📌・INFORMATION",["📜・rules","✅・verify","📢・announcements","👋・welcome","🎭・roles","📊・server-status"],[]],["💬・COMMUNITY",["💬・general","📸・clips-and-media","😂・memes","🤖・bot-commands","🎉・giveaways","💡・suggestions"],[]],["🎮・HOOD GAME",["🎯・hood-chat","🔫・pvp-clips","🏆・leaderboard","⚔️・crew-recruitment","📅・events","🆕・game-updates","🐛・bug-reports","💭・game-ideas"],[]],["🔊・VOICE CHANNELS",[],["🔊・General VC","🎮・Hood VC 1","🎮・Hood VC 2","⚔️・PvP VC","🎵・Music VC","😴・AFK"]],["🎫・SUPPORT",["🎟️・create-ticket","🚨・report-player","❓・help"],[]],["👑・STAFF ONLY",["👑・staff-chat","🛡️・mod-logs","📋・staff-announcements"],["🔊・Staff VC"]]]
+
+@bot.tree.command(name="setupchannels",description="Create DRILL LIFE Hood Game channel categories")
+@app_commands.checks.has_permissions(administrator=True)
+async def setupchannels(i:discord.Interaction):
+ await i.response.defer(ephemeral=True)
+ guild=i.guild
+ me=guild.me
+ if not me.guild_permissions.manage_channels:
+  return await i.followup.send("❌ Give DRILL LIFE BOT Manage Channels permission first.",ephemeral=True)
+ made=[]; existing=0; errors=[]
+ verified_row=DB.execute("SELECT role,verify_channel FROM member_roles WHERE guild=?",(guild.id,)).fetchone()
+ verified=guild.get_role(verified_row[0]) if verified_row else None
+ for category_name,text_names,voice_names in HOOD_CHANNELS:
+  staff=category_name.startswith("👑")
+  cat=discord.utils.get(guild.categories,name=category_name)
+  if cat is None:
+   overwrites={guild.default_role:discord.PermissionOverwrite(view_channel=False)} if staff else None
+   try:
+    cat=await guild.create_category(category_name,overwrites=overwrites,reason="DRILL LIFE channel setup")
+    made.append(category_name)
+   except discord.HTTPException as e:
+    errors.append(category_name);print("Category create failed",repr(e),flush=True);continue
+  for name,kind in [(n,"text") for n in text_names]+[(n,"voice") for n in voice_names]:
+   collection=cat.text_channels if kind=="text" else cat.voice_channels
+   if discord.utils.get(collection,name=name):
+    existing+=1;continue
+   perms=None
+   if staff:
+    perms={guild.default_role:discord.PermissionOverwrite(view_channel=False)}
+   elif verified and category_name not in ("📌・INFORMATION",):
+    perms={guild.default_role:discord.PermissionOverwrite(view_channel=False),verified:discord.PermissionOverwrite(view_channel=True)}
+   elif name.startswith("✅・verify"):
+    perms={guild.default_role:discord.PermissionOverwrite(view_channel=True,send_messages=False)}
+   try:
+    if kind=="text":await guild.create_text_channel(name,category=cat,overwrites=perms,reason="DRILL LIFE channel setup")
+    else:await guild.create_voice_channel(name,category=cat,overwrites=perms,reason="DRILL LIFE channel setup")
+    made.append(name)
+   except discord.HTTPException as e:
+    errors.append(name);print("Channel create failed",repr(e),flush=True)
+ await i.followup.send(f"✅ Created **{len(made)}** categories/channels. Already existed: **{existing}**. Errors: **{len(errors)}**. Staff channels are private from @everyone. For verified-only access, run /verifysetup with your Verified role and #verify channel. Newly created channels aren't automatically connected to /welcome or /ticketsetup.",ephemeral=True)
+
 @bot.tree.error
 async def errors(i:discord.Interaction,error):
  msg="❌ Missing permissions or an error occurred. Check the bot's channel permissions."
