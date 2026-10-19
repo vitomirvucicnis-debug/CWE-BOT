@@ -273,8 +273,8 @@ def verification_role(guild,channel):
  role=guild.get_role(row[0]) if row else None
  if role is None and isinstance(channel,discord.TextChannel):
   import re
-  m=re.search(r"DRILL_VERIFY_ROLE:(\\d+)",channel.topic or "")
-  if m:role=guild.get_role(int(m.group(1)))
+  saved=next((part.split(":",1)[1] for part in (channel.topic or "").split(" | ") if part.startswith("DRILL_VERIFY_ROLE:")),None)
+  if saved and saved.isdigit():role=guild.get_role(int(saved))
  if role is None:
   role=discord.utils.get(guild.roles,name="Verified") or discord.utils.get(guild.roles,name="✅ Verified")
  return role
@@ -302,7 +302,7 @@ async def verifysetup(i:discord.Interaction,role:discord.Role,channel:discord.Te
  if not i.guild.me.guild_permissions.manage_roles or not i.guild.me.guild_permissions.manage_channels:
   return await i.followup.send("❌ Bot needs Manage Roles and Manage Channels.",ephemeral=True)
  import re
- old_topic=re.sub(r"\\s*\\|?\\s*DRILL_VERIFY_ROLE:\\d+","",channel.topic or "").strip()
+ old_topic=" | ".join(part for part in (channel.topic or "").split(" | ") if not part.startswith("DRILL_VERIFY_ROLE:")).strip()
  topic=(old_topic+" | " if old_topic else "")+f"DRILL_VERIFY_ROLE:{role.id}"
  if len(topic)>1024:return await i.followup.send("❌ Verification channel topic is too long.",ephemeral=True)
  try:await channel.edit(topic=topic,reason="Save DRILL verification role across deployments")
